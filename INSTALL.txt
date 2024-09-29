@@ -1,0 +1,4 @@
+1. TO install the code,
+ cd v2qgt_v2
+ make
+
