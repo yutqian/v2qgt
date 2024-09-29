@@ -1,0 +1,7 @@
+v0. This version can only calculate total and n-th band: Omega_xy and g_xy, which fixed the bug for total BC in original version
+
+v1. This version can calculate total Omega_xx, Omega_xy, Omega_yy, g_xx, g_xy, g_yy
+    and also calculate for n-th band
+
+v2. This version change main.f90, even for case(ikubo .eq. 1), we don't sort k-points. So output results has the same
+    k-line ordering as input KPOINTS.
