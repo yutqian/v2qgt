@@ -6,5 +6,10 @@
 * The code can be used for calculating Berry curvature and quantum metric, directly by reading Wavecar of VASP. We use the kubo_formula to do the calcualtions.
 * The code fixed the bug in VASPBERRY, and extended to calculate both 2D and 3D materials.
 
+## How to install the code?
+makefile
+
 ## Cite:
 When you use the code, please cite our paper: DOI: 
+
+
