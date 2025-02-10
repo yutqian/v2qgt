@@ -7,7 +7,7 @@
 * The code fixed the bug in VASPBERRY, and extended to calculate both 2D and 3D materials.
 
 ## How to install the code?
-makefile
+  make
 
 ## Cite:
 When you use the code, please cite our paper: DOI: 

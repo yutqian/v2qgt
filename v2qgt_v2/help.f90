@@ -4,7 +4,7 @@
       write(6,*)" "
       write(6,*)ver_tag
       write(6,*)" "
-      write(6,*)"*LIMITATION : -This program is ONLY for 2D system."
+      write(6,*)"*LIMITATION : -This program is for 2D and 3D system."
       write(6,*)"            : -It tries to find the VBM for first KPT,"
       write(6,*)"            :  it may result in some problem when you"
       write(6,*)"            :  dealing with metallic states. "
@@ -173,13 +173,13 @@
       write(6,*)" Flag '-assume byterecl' is required for ifort."
       write(6,*)" for OSX,  -Wl,-stack_size,0x80000000 may be required"
       write(6,*)" ex-noMPI)ifort -fpp -assume byterecl -mkl & 
-                -o vaspberry vaspberry.f"
+                -o v2qgt v2qgt.f"
       write(6,*)" ex-MPI)mpif90 -DMPI_USE -mkl -fpp -assume byterecl &
-                 -o vaspberry vaspberry.f"
+                 -o v2qgt v2qgt.f"
       write(6,*)" ex-noMPI-gfortran) gfortran -I/opt/local/include &
                  -L/opt/local/lib/lapack/ &
-                -l lapack -o vaspberry vaspberry_gfortran _serial.f"
-!     write(6,*)" ex-MPI) mpif90   -DMPI_USE -mkl -fpp -assume byterecl -o vaspberry vaspberry.f "
-!     write(6,*)" ex-MPI) mpiifort -DMPI_USE -mkl -fpp -assume byterecl -o vaspberry vaspberry.f "
+                -l lapack -o v2qgt v2qgt_gfortran _serial.f"
+!     write(6,*)" ex-MPI) mpif90   -DMPI_USE -mkl -fpp -assume byterecl -o v2qgt v2qgt.f "
+!     write(6,*)" ex-MPI) mpiifort -DMPI_USE -mkl -fpp -assume byterecl -o v2qgt v2qgt.f "
       stop
       end subroutine help
