@@ -1,15 +1,18 @@
+# v2qgt Release 🚀  
 
-# v2qgt
-* This code is developed to calculate quantum geometric tensor (qgt) directly from DFT. The code is based on VASPBERRY: https://github.com/Infant83/VASPBERRY.
+This code **v2qgt** provides an efficient tool for calculating the **quantum geometric tensor (QGT)** directly from DFT calculations. The code is based on [VASPBERRY](https://github.com/Infant83/VASPBERRY) but includes important fixes and enhancements.  
 
-## The feature of v2qgt:
-* The code can be used for calculating Berry curvature and quantum metric, directly by reading Wavecar of VASP. We use the kubo_formula to do the calculations.
-* The code fixed the bug in VASPBERRY, and extended it to calculate both Berry curvature and quantum metric tensor for 2D and 3D materials.
+## ✨ Features  
+- Computes **Berry curvature** and **quantum metric tensor** directly from VASP's `WAVECAR`.  
+- Implements the **Kubo formula** for accurate calculations.  
+- Fixes bugs in **VASPBERRY** and extends functionality to support **both 2D and 3D materials**.  
 
-## How to install the code?
-  make
+## 🔧 Installation  
+Simply compile using:  
+```sh
+make
+```
 
-## Cite:
-When you use the code, please cite our paper: DOI: 
-
-
+## 📖 Citation
+If you use v2qgt in your research, please cite our paper:
+DOI: 
