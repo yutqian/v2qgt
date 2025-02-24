@@ -1,4 +1,4 @@
-# v2qgt Release 🚀  
+# v2qgt 🚀  
 
 This code **v2qgt** provides an efficient tool for calculating the **quantum geometric tensor (QGT)** directly from DFT calculations. The code is based on [VASPBERRY](https://github.com/Infant83/VASPBERRY) but includes important fixes and enhancements.  
 
