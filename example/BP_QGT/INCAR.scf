@@ -1,0 +1,27 @@
+#
+System  = SrVO3                        # system name         
+
+ISTART = 0
+EDIFF    = 1E-5
+LREAL    = F
+#NBANDS= 120
+ENCUT    = 500
+
+
+
+ISMEAR   = 0
+SIGMA    = 0.05
+
+#ISIF = 7
+LWAVE = .TRUE.
+PREC = N
+NBANDS = 48                            # small number  of bands  
+KPAR = 12
+
+##optB88-vdW of Klimeš et al.[8]:
+#GGA       = BO
+#PARAM1    = 0.1833333333
+#PARAM2    = 0.22
+#AGGAC     = 0.0
+#LUSE_VDW  = .TRUE.
+#LASPH     = .TRUE.
