@@ -14,5 +14,5 @@ make
 ```
 
 ## 📖 Citation
-If you use v2qgt in your research, please cite our paper DOI: 10.1126/science.ado6049. <br>
+If you use v2qgt in your research, please cite our paper: Sunje Kim, Yoonah Chung, Yuting Qian, et al., Direct measurement of the quantum metric tensor in solids.Science388,1050-1054(2025).DOI:10.1126/science.ado6049 <br>
 or our code: DOI:10.5281/zenodo.14915109.
