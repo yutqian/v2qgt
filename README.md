@@ -14,5 +14,5 @@ make
 ```
 
 ## 📖 Citation
-If you use v2qgt in your research, please cite our paper DOI: DOI: 10.1126/science.ado6049. <br>
+If you use v2qgt in your research, please cite our paper DOI: 10.1126/science.ado6049. <br>
 or our code: DOI:10.5281/zenodo.14915109.
