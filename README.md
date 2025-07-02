@@ -21,7 +21,7 @@ If you use **v2qgt** in your research, please cite our paper:
 > *Science*, **388**, 1050–1054 (2025).  
 > [DOI: 10.1126/science.ado6049](https://www.science.org/doi/abs/10.1126/science.ado6049)
 
-### BibTeX (paper)
+### BibTeX 
 ```bibtex
 @article{doi:10.1126/science.ado6049,
   author = {Sunje Kim and Yoonah Chung and Yuting Qian and Soobin Park and Chris Jozwiak and Eli Rotenberg and Aaron Bostwick and Keun Su Kim and Bohm-Jung Yang},
