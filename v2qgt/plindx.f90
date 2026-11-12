@@ -5,6 +5,9 @@
       dimension wk(3),sumkg(3),b1(3),b2(3),b3(3),nbmax(3)
       integer :: ig(3,npmax)
       data c/0.262465831d0/
+
+      ecut_tol = max(1.0d-5, abs(ecut)*1.0d-8)
+
       ncnt=0
       do ig3=0,2*nbmax(3)
        ig3p=ig3
@@ -22,7 +25,9 @@
          enddo
          gtot=sqrt(dot_product(sumkg,sumkg))
          etot=gtot**2/c
-         if (etot.lt.ecut) then
+         !if (etot.lt.ecut) then
+         !!$ fix error: *** error - computed ispinor*ncnt=       12632  != input nplane=       12636
+         if (etot.le.ecut + ecut_tol) then
           ncnt=ncnt+1
           ig(1,ncnt)=ig1p
           ig(2,ncnt)=ig2p

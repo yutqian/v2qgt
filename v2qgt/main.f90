@@ -22,6 +22,7 @@
     real*8,    allocatable :: spectrum(:,:),xspectrum(:,:)
     real*8,    allocatable :: berrycurv_kubo(:,:),xberrycurv_kubo(:,:)
     real*8,    allocatable :: berrycurv_kubo_tot(:,:)
+    real*8,    allocatable :: qgtineq2d(:,:)
     real*8,    allocatable :: e_range(:) 
     real*16,   allocatable :: ener(:)
     integer,   allocatable :: ig(:,:),nplist(:)
@@ -35,6 +36,7 @@
     real*8,    allocatable :: sw_recilat(:,:) ! PBZ for unfold (fractional)
     logical                   flag_atom_project
     integer*4                 ie, natom, natlist
+    integer*4                 abelian, mm, Q_nm
     dimension selectivitymax(4),selectivitymin(4)
     dimension a1(3),a2(3),a3(3),b1(3),b2(3),b3(3),a2xa3(3),sumkg(3)
     dimension wk(3),wkk(3,5),ikk(5),isgg(2,5),npl(5),itr(5),itrim(5)
@@ -42,7 +44,7 @@
     complex*16 csum1,csum2
     complex*16  detS(4),detA,detLOOP
     integer k, n, nkx, nky,nini,nmax,ns,ne,icd,ivel
-    character*256 filename,foname,fonameo,fbz,ver_tag,vdirec
+    character*256 filename,foname,fonameo,fbz,ver_tag,vdirec,qgtfile
     character*256 klist_fname,sw_fname, atlist_fname, proj_fname
     character*20,external :: int2str
     character*20 dummy
@@ -54,7 +56,13 @@
     real*8, allocatable:: w_half_klist(:,:)
     integer, allocatable:: i_half_klist(:),i_trim_klist(:)
     integer :: myrank, nprocs, ierr, mpierr
+    integer :: kdir1, kdir2, envlen, envstat
+    integer :: qgt_ext_bmin, qgt_ext_bmax
+    real*8 :: qgt_dvec1(3), qgt_dvec2(3)
+    character*128 :: envbuf128
     integer ::  mpi_comm_earth
+    character*32 envbuf
+    character*64 qgt_ext_mode, qgt_ext_tag
 #ifdef MPI_USE
     include 'mpif.h'
     INTEGER         status(MPI_STATUS_SIZE)
@@ -82,19 +90,93 @@
     nkx=12 ;nky=12 
     ispinor=2  ! 2 for soc, 1 for non-soc
     itr=0;itrim=0
-
+    
+    Q_nm = 0
 !!$*  reading general informations
     call parse(filename,foname,nkx,nky,ispinor,icd,ixt,fbz, &
-       ivel,ikubo,iqm,iz,ihf,nini,nmax,nn,kperiod,it,iskp,ine,ver_tag,&
+       ivel,ikubo,Q_nm,iqm,iz,ihf,nini,nmax,nn,mm,abelian,kperiod,it,iskp,ine,ver_tag,&
        iwf,ikwf,ng,rs,imag,init_e,fina_e,nediv,sigma,&
        klist_fname,sw_fname,atlist_fname,flag_atom_project,&
        theta,phi)
+
+    !!$*ikubo=5:
+    !!$*    derivative directions = Cartesian kx, ky
+    !!$*
+    !!$*ikubo=6:
+    !!$*    derivative directions = fractional k_i, k_j
+    !!$*    controlled by QGT_KDIR1, QGT_KDIR2
+    !!$*
+    !!$*ikubo=7:
+    !!$*    derivative directions = arbitrary linear combinations of b1,b2,b3
+    !!$*    controlled by QGT_DVEC1, QGT_DVEC2
+
+    ! For ikubo=6: choose fractional reciprocal-coordinate directions.
+    ! Default checks the (k1,k2) plane.  You can override at run time, e.g.
+    !     QGT_KDIR1=2 QGT_KDIR2=3 ./vaspberry.x
+    kdir1=1
+    kdir2=2
+    call get_environment_variable('QGT_KDIR1',envbuf,length=envlen,status=envstat)
+    if(envstat.eq.0 .and. envlen.gt.0) read(envbuf(1:envlen),*) kdir1
+    call get_environment_variable('QGT_KDIR2',envbuf,length=envlen,status=envstat)
+    if(envstat.eq.0 .and. envlen.gt.0) read(envbuf(1:envlen),*) kdir2
+
+    ! For ikubo=7: arbitrary derivative directions, specified in
+    ! fractional reciprocal coordinates.  If QGT_DVEC1="a b c",
+    ! the real reciprocal direction is a*b1+b*b2+c*b3.
+    ! Example for the Gamma-T-W plane:
+    !   QGT_DVEC1="G1-T1 G2-T2 G3-T3"
+    !   QGT_DVEC2="W1-T1 W2-T2 W3-T3"
+    qgt_dvec1(1)=1.0d0
+    qgt_dvec1(2)=0.0d0
+    qgt_dvec1(3)=0.0d0
+    qgt_dvec2(1)=0.0d0
+    qgt_dvec2(2)=1.0d0
+    qgt_dvec2(3)=0.0d0
+    envbuf128=' '
+    call get_environment_variable('QGT_DVEC1',envbuf128,length=envlen,status=envstat)
+    if(envstat.eq.0 .and. envlen.gt.0) read(envbuf128(1:envlen),*) qgt_dvec1(1),qgt_dvec1(2),qgt_dvec1(3)
+    envbuf128=' '
+    call get_environment_variable('QGT_DVEC2',envbuf128,length=envlen,status=envstat)
+    if(envstat.eq.0 .and. envlen.gt.0) read(envbuf128(1:envlen),*) qgt_dvec2(1),qgt_dvec2(2),qgt_dvec2(3)
+    
+    if(myrank == 0)write(6,'(A,3I9)')"# Abelian, mm,Q_nm = ",abelian, mm ,Q_nm
+    if(myrank == 0 .and. ikubo.eq.6)write(6,'(A,2I6)')"# QGT fractional directions kdir1,kdir2 = ",kdir1,kdir2
+    if(myrank == 0 .and. ikubo.eq.7)then
+       write(6,'(A,3ES18.8E3)') "# QGT arbitrary dvec1 fractional = ", qgt_dvec1
+       write(6,'(A,3ES18.8E3)') "# QGT arbitrary dvec2 fractional = ", qgt_dvec2
+    endif
     !! if(myrank == 0)call creditinfo(ver_tag)
 
     if (ixt .ne. 0) call extendingBZ(fbz,ixt)
     if (it .eq. 1) call test
     if(myrank == 0)write(6,'(A,A)')"# File reading... : ",filename
     call inforead(irecl,ispin,nk,nband,ecut,a1,a2,a3,filename)
+
+    ! Optional external-band restriction for ikubo=6.  The actual
+    ! selection is performed inside kubo_qgt_ineq_2d_kdir_kramers_pair.
+    ! Here we only read it to print diagnostics and choose a filename tag.
+    ! Examples:
+    !   QGT_EXT_MODE=all
+    !   QGT_EXT_MODE=near   QGT_EXT_BMIN=11 QGT_EXT_BMAX=14
+    !   QGT_EXT_MODE=remote QGT_EXT_BMIN=11 QGT_EXT_BMAX=14
+    qgt_ext_mode='all'
+    qgt_ext_bmin=1
+    qgt_ext_bmax=nband
+    call get_environment_variable('QGT_EXT_MODE',qgt_ext_mode,length=envlen,status=envstat)
+    call get_environment_variable('QGT_EXT_BMIN',envbuf,length=envlen,status=envstat)
+    if(envstat.eq.0 .and. envlen.gt.0) read(envbuf(1:envlen),*) qgt_ext_bmin
+    call get_environment_variable('QGT_EXT_BMAX',envbuf,length=envlen,status=envstat)
+    if(envstat.eq.0 .and. envlen.gt.0) read(envbuf(1:envlen),*) qgt_ext_bmax
+    if(qgt_ext_bmin.lt.1) qgt_ext_bmin=1
+    if(qgt_ext_bmax.gt.nband) qgt_ext_bmax=nband
+    qgt_ext_tag='_all'
+    if(qgt_ext_mode(1:4).eq.'near' .or. qgt_ext_mode(1:4).eq.'NEAR') qgt_ext_tag='_near'
+    if(qgt_ext_mode(1:6).eq.'remote' .or. qgt_ext_mode(1:6).eq.'REMOTE') qgt_ext_tag='_remote'
+    if(myrank == 0 .and. (ikubo.eq.5 .or. ikubo.eq.6 .or. ikubo.eq.7)) then
+       write(6,'(A,A)') '# QGT external-band mode = ', TRIM(qgt_ext_mode)
+       write(6,'(A,2I8)') '# QGT external-band window BMIN/BMAX = ', qgt_ext_bmin, qgt_ext_bmax
+    endif
+
     if (ispin .eq. 2) ispinor=1
     allocate(cener(nband),ener(nband),occ(nband))
     if(myrank == 0)write(6,'(A,I9)')"# TOTAL RECORD LENGTH = ",irecl
@@ -185,9 +267,9 @@
         write(6,'(A,I6)')     "#  NB3MAX    : ",nbmax(3)
     endif
     !>----write information
- #ifdef MPI_USE
+#ifdef MPI_USE
     call MPI_BARRIER(MPI_COMM_WORLD,ierr)
- #endif
+#endif
 
 
     allocate(ig(3,npmax))
@@ -212,6 +294,9 @@
     if(ikubo.ge.1) allocate(berrycurv_kubo(nk,3))
     if(ikubo.ge.1) allocate(xberrycurv_kubo(kperiod*2*kperiod*2*nk,3))
     if(ikubo.ge.1) allocate(berrycurv_kubo_tot(nk,3))
+    if(ikubo.eq.5) allocate(qgtineq2d(nk,18))
+    if(ikubo.eq.6) allocate(qgtineq2d(nk,18))
+    if(ikubo.eq.7) allocate(qgtineq2d(nk,18))
     !! if(ivel .eq. 1 .and. myrank==0) then
     !!     ni=nini 
     !!     nj=nini
@@ -230,14 +315,166 @@
                time_2=MPI_WTIME()
             endif
 #endif
+            if(ikubo .eq. 7) then
+               if(myrank .eq. 0) then
+                  write(6,'(A)') " "
+                  write(6,'(A)') "# QGT INEQUALITY CHECK IN 2D, Eq.(5), arbitrary derivative directions"
+                  write(6,'(A)') "# convention: Omega_12 = i*(Q_12-Q_21)"
+                  write(6,'(A,2I8)') "# Kramers pair bands nn, mm = ", nn, mm
+                  write(6,'(A,3ES18.8E3)') "# dvec1 fractional = ", qgt_dvec1
+                  write(6,'(A,3ES18.8E3)') "# dvec2 fractional = ", qgt_dvec2
+                  write(6,'(A,I8)') "# Spin index s = ", isp
+                  if(abelian .ne. 2) then
+                     write(6,'(A)') "# WARNING: Eq.(5) check is intended for abelian=2 non-Abelian Kramers pair mode."
+                  endif
+               endif
+#ifdef MPI_USE
+               call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+#endif
+               qgtineq2d = 0d0
+               call kubo_qgt_ineq_2d_dvec_kramers_pair(qgtineq2d, &
+                    qgt_dvec1,qgt_dvec2,                        &
+                    b1,b2,b3,wklist,isp,                        &
+                    nband,ecut,ispinor,nplist,nbmax,npmax,      &
+                    nk,nn,mm,nmax,                              &
+                    nprocs,myrank,mpi_comm_earth)
+
+               if(myrank .eq. 0) then
+                  write(qgtfile,'(A,A,A,A)') TRIM(foname), &
+                       '.qgtineq2d_dvec',TRIM(qgt_ext_tag),'.dat'
+                  open(unit=78,file=TRIM(qgtfile),status='unknown')
+                  write(78,'(A)') '# QGT inequality Eq.(5), arbitrary derivative directions'
+                  write(78,'(A,3ES24.14E3)') '# QGT_DVEC1 fractional = ', qgt_dvec1
+                  write(78,'(A,3ES24.14E3)') '# QGT_DVEC2 fractional = ', qgt_dvec2
+                  write(78,'(A,A)') '# QGT_EXT_MODE = ', TRIM(qgt_ext_mode)
+                  write(78,'(A,2I8)') '# QGT_EXT_BMIN QGT_EXT_BMAX = ', qgt_ext_bmin, qgt_ext_bmax
+                  write(78,'(A)') '# If dvec=(a,b,c), derivative direction is a*b1+b*b2+c*b3.'
+                  write(78,'(A)') '# Omega_12 = i*(Q_12-Q_21); omega_norm2 = 1/2 Tr[Omega_SU2^2]'
+                  write(78,'(A)') &
+                       '# columns: ik k1_frac k2_frac k3_frac g11 g22 g12 detg lhs omega_norm2 rhs margin ReOm11 ImOm11 ReOm12 ImOm12 ReOm21 ImOm21 ReOm22 ImOm22 min_gap_eV nskip_gap'
+                  do ik=1,nk
+                     write(78,'(I8,3F16.8,18ES24.14E3)') ik, &
+                          (wklist(j,ik),j=1,3),             &
+                          (qgtineq2d(ik,j),j=1,18)
+                  enddo
+                  close(78)
+                  write(6,'(A,A)') '# QGT 2D arbitrary-direction inequality written to ', &
+                       TRIM(qgtfile)
+               endif
+#ifdef MPI_USE
+               if(myrank == 0)then
+                  time_3=MPI_WTIME()
+               endif
+#endif
+               cycle
+            endif
+            if(ikubo .eq. 6) then
+               if(myrank .eq. 0) then
+                  write(6,'(A)') " "
+                  write(6,'(A)') "# QGT INEQUALITY CHECK IN 2D, Eq.(5), fractional k directions"
+                  write(6,'(A)') "# convention: Omega_12 = i*(Q_12-Q_21)"
+                  write(6,'(A,2I8)') "# Kramers pair bands nn, mm = ", nn, mm
+                  write(6,'(A,2I8)') "# fractional directions kdir1, kdir2 = ", kdir1, kdir2
+                  write(6,'(A,I8)') "# Spin index s = ", isp
+                  if(abelian .ne. 2) then
+                     write(6,'(A)') "# WARNING: Eq.(5) check is intended for abelian=2 non-Abelian Kramers pair mode."
+                  endif
+               endif
+#ifdef MPI_USE
+               call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+#endif
+               qgtineq2d = 0d0
+               call kubo_qgt_ineq_2d_kdir_kramers_pair(qgtineq2d, &
+                    kdir1,kdir2,                                &
+                    b1,b2,b3,wklist,isp,                        &
+                    nband,ecut,ispinor,nplist,nbmax,npmax,      &
+                    nk,nn,mm,nmax,                              &
+                    nprocs,myrank,mpi_comm_earth)
+
+               if(myrank .eq. 0) then
+                  write(qgtfile,'(A,A,I1,A,I1,A,A)') TRIM(foname), &
+                       '.qgtineq2d_k',kdir1,'k',kdir2,TRIM(qgt_ext_tag),'.dat'
+                  open(unit=78,file=TRIM(qgtfile),status='unknown')
+                  write(78,'(A)') '# QGT inequality Eq.(5), fractional reciprocal-coordinate directions'
+                  write(78,'(A,2I8)') '# kdir1 kdir2 = ', kdir1, kdir2
+                  write(78,'(A,A)') '# QGT_EXT_MODE = ', TRIM(qgt_ext_mode)
+                  write(78,'(A,2I8)') '# QGT_EXT_BMIN QGT_EXT_BMAX = ', qgt_ext_bmin, qgt_ext_bmax
+                  write(78,'(A)') '# K = k1*b1 + k2*b2 + k3*b3; this file uses dH/dk_kdir.'
+                  write(78,'(A)') '# Omega_12 = i*(Q_12-Q_21); omega_norm2 = 1/2 Tr[Omega_SU2^2]'
+                  write(78,'(A)') &
+                       '# columns: ik k1_frac k2_frac k3_frac g11 g22 g12 detg lhs omega_norm2 rhs margin ReOm11 ImOm11 ReOm12 ImOm12 ReOm21 ImOm21 ReOm22 ImOm22 min_gap_eV nskip_gap'
+                  do ik=1,nk
+                     write(78,'(I8,3F16.8,18ES24.14E3)') ik, &
+                          (wklist(j,ik),j=1,3),             &
+                          (qgtineq2d(ik,j),j=1,18)
+                  enddo
+                  close(78)
+                  write(6,'(A,A)') '# QGT 2D fractional-direction inequality written to ', &
+                       TRIM(qgtfile)
+               endif
+#ifdef MPI_USE
+               if(myrank == 0)then
+                  time_3=MPI_WTIME()
+               endif
+#endif
+               cycle
+            endif
+            if(ikubo .eq. 5) then
+               if(myrank .eq. 0) then
+                  write(6,'(A)') " "
+                  write(6,'(A)') "# QGT INEQUALITY CHECK IN 2D, Eq.(5), Cartesian kx,ky directions"
+                  write(6,'(A)') "# convention: Omega_xy = i*(Q_xy-Q_yx)"
+                  write(6,'(A,2I8)') "# Kramers pair bands nn, mm = ", nn, mm
+                  write(6,'(A,I8)') "# Spin index s = ", isp
+                  if(abelian .ne. 2) then
+                     write(6,'(A)') "# WARNING: Eq.(5) check is intended for abelian=2 non-Abelian Kramers pair mode."
+                  endif
+               endif
+#ifdef MPI_USE
+               call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+#endif
+               qgtineq2d = 0d0
+               call kubo_qgt_ineq_2d_kramers_pair(qgtineq2d, &
+                    b1,b2,b3,wklist,isp,                    &
+                    nband,ecut,ispinor,nplist,nbmax,npmax,  &
+                    nk,nn,mm,nmax,                          &
+                    nprocs,myrank,mpi_comm_earth)
+
+               if(myrank .eq. 0) then
+                  write(qgtfile,'(A,A,A,A)') TRIM(foname), &
+                       '.qgtineq2d_kxky',TRIM(qgt_ext_tag),'.dat'
+                  open(unit=78,file=TRIM(qgtfile),status='unknown')
+                  write(78,'(A)') '# QGT inequality Eq.(5), Cartesian kx,ky directions'
+                  write(78,'(A,A)') '# QGT_EXT_MODE = ', TRIM(qgt_ext_mode)
+                  write(78,'(A,2I8)') '# QGT_EXT_BMIN QGT_EXT_BMAX = ', qgt_ext_bmin, qgt_ext_bmax
+                  write(78,'(A)') '# This file uses kinetic dH/dkx and dH/dky.'
+                  write(78,'(A)') '# Omega_xy = i*(Q_xy-Q_yx); omega_norm2 = 1/2 Tr[Omega_SU2^2]'
+                  write(78,'(A)') &
+                       '# columns: ik k1_frac k2_frac k3_frac g11 g22 g12 detg lhs omega_norm2 rhs margin ReOm11 ImOm11 ReOm12 ImOm12 ReOm21 ImOm21 ReOm22 ImOm22 min_gap_eV nskip_gap'
+                  do ik=1,nk
+                     write(78,'(I8,3F16.8,18ES24.14E3)') ik, &
+                          (wklist(j,ik),j=1,3),             &
+                          (qgtineq2d(ik,j),j=1,18)
+                  enddo
+                  close(78)
+                  write(6,'(A,A)') '# QGT 2D Cartesian kx,ky inequality written to ', &
+                       TRIM(qgtfile)
+               endif
+#ifdef MPI_USE
+               if(myrank == 0)then
+                  time_3=MPI_WTIME()
+               endif
+#endif
+               cycle
+            endif
             chernnumber_total=0d0
             chernnumber=0d0
             berrycurv_kubo_tot = 0
             do ie=nini, nmax
                if(myrank .eq. 0) then
                   write(6,'(A  )')" "
-                  write(6,'(A,I)')"# BERRY CURVATURE FOR BAND INDEX n= ", ie
-                  write(6,'(A,I)')"#                     SPIN INDEX s= ", isp
+                  write(6,'(A,I8)')"# BERRY CURVATURE FOR BAND INDEX n= ", ie
+                  write(6,'(A,I8)')"#                     SPIN INDEX s= ", isp
                   write(6,'(A  )')" "
                endif
 #ifdef MPI_USE
@@ -245,10 +482,11 @@
 #endif
 ! calculate BC for n-th band and write it into files 
                 berrycurv_kubo = 0d0
-                call kubo_berry_curvature(berrycurv_kubo,     &
+                call kubo_berry_curvature_non_abelian2(berrycurv_kubo,     &
+                       Q_nm, &
                        b1,b2,b3,wklist,isp,                   &
                        nband,ecut,ispinor,nplist,nbmax,npmax, &
-                       nk,ie,nmax,iqm,                           &
+                       nk,ie,mm,abelian,nmax,iqm,                           &
                        nprocs,myrank,mpi_comm_earth)
 
 
@@ -394,6 +632,7 @@
     deallocate(nplist)
     if(icd.ge.1)deallocate(selectivity)
     if(icd.ge.1)deallocate(xselectivity)
+    if(allocated(qgtineq2d)) deallocate(qgtineq2d)
 #ifdef MPI_USE
     if(myrank == 0 .and. iz+ivel+icd+iwf .eq. 0)then
        time_4=MPI_Wtime()

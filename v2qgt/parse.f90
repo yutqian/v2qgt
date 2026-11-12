@@ -1,6 +1,6 @@
 !!$   parse command line arguments
       subroutine parse(filename,foname,nkx,nky,ispinor,icd,ixt,fbz,&
-           ivel,ikubo,iqm,iz,ihf,nini,nmax,nn,kperiod,it,iskp,ine,&
+           ivel,ikubo,Q_nm,iqm,iz,ihf,nini,nmax,nn,mm,iab,kperiod,it,iskp,ine,&
            ver_tag,&
            iwf,ikwf,ng,rs,imag,init_e,fina_e,nediv,sigma,&
            klist_fname,sw_fname,atlist_fname,flag_atom_project,&
@@ -11,14 +11,15 @@
           real*8 x,y
           character*256 option,value
           integer iarg,narg,ia,nkx,nky,ispinor,iskp,ine,ng(3)
+
           dimension rs(3)
           real*8    init_e, fina_e
           real*8    theta, phi
           logical   flag_atom_project
           nini=1;it=0;iskp=0;ine=0;icd=0;ixt=0;ivel=0;iz=0;ihf=0
           iwf=0;ikwf=1;ng=0;imag=0;rs=0.;ikubo=0;nn=0;nediv=1000
-          init_e =  0.0d0;fina_e=10.0d0;sigma=0.01;iqm=0
-          theta = 0.0d0 ; phi = 0.0d0
+          init_e =  0.0d0;fina_e=10.0d0;sigma=0.01;iqm=0; mm=0
+          theta = 0.0d0 ; phi = 0.0d0; iab =1; Q_nm=0
           nmax=999999
           iarg=iargc()
           nargs=iarg/2
@@ -50,7 +51,7 @@
               read(value,*) nini
               else if(option == "-if") then
               read(value,*) nmax
-              else if(option == "-is") then
+              else if(option == "-is") then  !! -is n, calc. only n-th band
               read(value,*) nini
               nini=nini;nmax=nini
               else if(option == "-kp") then
@@ -88,10 +89,16 @@
               read(value,*) sigma
               else if(option == "-kubo") then
               read(value,*) ikubo
-              else if(option == "-qm") then
+              else if(option == "-qm") then ! -kubo 1 -qm 1, QM calculated
               read(value,*) iqm
+              else if(option == "-Qnm") then ! -Qnm 1  Q_nm  is calculated, -Qnm 0 Q_nn is calculated
+              read(value,*) Q_nm
               else if(option == "-nn") then ! band index nn
               read(value,*) nn
+              else if(option == "-mm") then ! band index mm
+              read(value,*) mm
+              else if(option == "-abelian") then !  1 abelian; 2 non-ableian
+              read(value,*) iab
               else if(option == "-vel") then
               read(value,*) ivel
               else if(option == "-z2") then
