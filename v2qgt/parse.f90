@@ -11,6 +11,7 @@
           real*8 x,y
           character*256 option,value
           integer iarg,narg,ia,nkx,nky,ispinor,iskp,ine,ng(3)
+          integer*4 :: Q_nm
 
           dimension rs(3)
           real*8    init_e, fina_e

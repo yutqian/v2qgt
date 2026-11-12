@@ -208,7 +208,8 @@
                 nprocs,myrank,mpi_comm_earth)
       implicit real*8 (a-h,o-z)
       include 'mpif.h'
-       integer kk, mm, abelian
+      integer kk, mm, abelian
+      integer*4 :: Q_nm
       dimension nbmax(3),nplist(nk),wk(3),ener(nband)
       real*8    berrycurv_kubo(nk,3),b1(3),b2(3),b3(3),wklist(3,nk)
       real*8    berrycurv_kubo_(nk,3)
