@@ -16,7 +16,6 @@ The supplied Makefile uses Intel Fortran, Intel MPI, and MKL on Linux. Load the 
 | --- | --- |
 | `0` (default) | Skips Kubo calculations. The legacy overlap-based Berry curvature calculation is disabled in the current main program. |
 | `1` | Calculates band-resolved quantities in Cartesian `x,y`. Use `-qm 0` for Berry curvature or `-qm 1` for the quantum metric. A band range also produces a separate total. |
-| `2`, `3`, `4` | Use the same calculation as mode `1`. |
 | `5` | Evaluates the two-band QGT inequality using Cartesian `kx,ky` derivatives. Outputs the metric, traceless Berry curvature matrix, and both sides of the inequality at each k point. |
 | `6` | Evaluates the same inequality using derivatives along two reciprocal lattice vectors selected by `QGT_KDIR1` and `QGT_KDIR2`. |
 | `7` | Evaluates the same inequality using two arbitrary directions specified by `QGT_DVEC1` and `QGT_DVEC2`. |
@@ -38,8 +37,6 @@ Pass options as flag–value pairs. Band numbers are one-based and follow the or
 | `-ii N -if M` | Outputs each band from `N` through `M`, inclusive, and a separate total when the range contains multiple bands. | Select the pair with `-nn/-mm`. |
 
 The modes 1–4 total uses a separate routine. It sums over the selected target bands with intermediate states above `-if`, so adding the individual band files can give a different result. The total routine is independent of the band-resolved `-abelian`, `-mm`, and `-Qnm` settings.
-
-**Known source issue with `-Qnm`.** The main program declares `Q_nm` as an integer, while the parser and band-resolved non-Abelian routine implicitly declare their corresponding arguments as double precision. Make those types consistent and verify the result before relying on the modes 1–4 non-Abelian output.
 
 | Option | Meaning |
 | --- | --- |
