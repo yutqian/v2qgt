@@ -12,8 +12,8 @@
                                       # if srun -n not working, try mpirun -np
 #OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 set -e
-OMP_NUM_THREADS= 1 
-MKL_NUM_THREADS= 1
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
 
 main=`pwd`
 
